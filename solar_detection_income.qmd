@@ -1,0 +1,99 @@
+---
+title: "Solar Detection & Income"
+format: html
+editor: visual
+---
+
+### Libraries
+
+```{r}
+library(tidyverse)
+library(here)
+library(sf)
+library(mapview)
+install.packages("tidycensus")
+library(tidycensus)
+```
+
+### Read in Data
+
+```{r}
+oahu_solar <- st_read(here("data/oahu_solar_dedup_simple.geojson"))
+```
+
+### Map the data
+
+```{r}
+mapview(oahu_solar)
+```
+
+### Retreive some census data
+
+```{r}
+oahu_median_household_income <- get_acs(geography = "tract",
+                                 variable = "B19013_001",
+                                 state = "HI",
+                                 county = "Honolulu",
+                                 geometry = TRUE,
+                                 year = 2022)
+```
+
+```{r}
+mapview(oahu_median_household_income,
+        zcol = "estimate")
+```
+
+```{r}
+ggplot(oahu_median_household_income, aes
+       (x = moe, y = estimate)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+```
+
+- package: sf / language: R
+
+- head() of two databases
+
+- please identify the best function in sf for the task at hand
+
+- Goal is to answer the question: "Is there a relationship/correlation between median income and solar infrastructure at the census tract level"?
+
+- one census tract level
+
+- i got out median income data from tidycensus
+
+- building
+
+```{r}
+oahu_solar_clean <- oahu_solar |>
+  filter(!st_is_empty(geometry)) |>
+  st_make_valid() |>
+  st_transform(crs = 26904)
+# drop the 68 empty geometries
+# repair any invalid polygons
+# NAD83 / UTM zone 4N (meters)
+
+# Project the census tracts to the same CRS
+oahu_tracts <- oahu_median_household_income |>
+  st_transform(crs = 26904)
+
+# Confirm both layers now share a CRS (should print TRUE)
+st_crs(oahu_solar_clean) == st_crs(oahu_tracts)
+```
+
+```{r}
+
+# Represent each solar polygon with one point guaranteed to lie inside it
+oahu_solar_points ‹- oahu_solar_clean |>
+  st_point_on_surface ()
+# Attach each point to the census tract it falls in
+solar_with_tracts <-oahu_solar points |> st_join(
+  oahu_tracts> select (GEOID),
+  join = st
+  _intersects
+  #bring over only the tract ID
+  # match points to the tract they touch
+  # Sanity checks
+  nrow(solar_with_tracts)
+  sum(is.na(solar with_tracts$GEOID))
+```
